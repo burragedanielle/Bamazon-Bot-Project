@@ -16,6 +16,8 @@ connection.connect(function (err) {
     if (err) throw err;
 });
 
+// VARIABLES
+
 let itemChoice = '';
 let departmentChoice = '';
 let quantityChoice = 0;
@@ -23,6 +25,8 @@ let currentStock = 0;
 let newStock = 0;
 let cart = [];
 let total = 0;
+
+// FUNCTIONS
 
 const runBamazon = () => {
     console.log(` Welcome to Bamazon! Let's Get Shopping! \n`);
