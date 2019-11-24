@@ -2,8 +2,6 @@ const mysql = require('mysql');
 const fs = require('fs');
 const inquirer = require('inquirer');
 
-var departments = [];
-
 // CONNECTING NODE TO SQL 
 
 var connection = mysql.createConnection({
@@ -16,104 +14,133 @@ var connection = mysql.createConnection({
 
 connection.connect(function (err) {
     if (err) throw err;
-    runBamazon();
 });
 
-function runBamazon() {
-    console.log(`
-    Welcome to Bamazon! Let's Get Shopping! \n
-    `); 
+let itemChoice = '';
+let departmentChoice = '';
+let quantityChoice = 0;
+let currentStock = 0;
+let newStock = 0;
+let cart = [];
+let total = 0;
+
+const runBamazon = () => {
+    console.log(` Welcome to Bamazon! Let's Get Shopping! \n`);
+    fetchDepartment();
+}
+
+const fetchDepartment = () => {
     connection.query('SELECT department_name FROM products GROUP BY department_name', function (err, res) {
-        // console.log(res);
         if (err) throw err;
-        // Log all results of the SELECT statement
-    inquirer
-        .prompt({
-            type: 'list',
-            name: 'department_choice',
-            message: 'Choose your department',
-            choices: function(){
-                var departmentArray = [];
-                for (var i = 0; i < res.length; i++) {
-                    departmentArray.push(res[i].department_name);
-                } 
-                return departmentArray;
-            }
-        })
-        .then(answer => {
-            connection.query('SELECT * FROM PRODUCTS WHERE ?', {department_name: answer.department_choice}, function(err, res){
-                if(err) throw(err);
-                inquirer
-                    .prompt({
-                        type: 'list',
-                        name: 'item_choice',
-                        message: 'Which item do you want?',
-                        choices: function(){
-                            var itemArray = [];
-                            for (var i = 0; i < res.length; i++){
-                                itemArray.push(res[i].product_name);
-                            }
-                            return itemArray;
-                        }
-                    }).then(answer => {
-                        inquirer
-                            .prompt({
-                                type: 'input',
-                                name:'quantity_choice',
-                                message: 'How many of this item do you want?'
-                            }).then(answer => {
-                                var newQuantity = parseInt(answer.quantity_choice);
-                                connection.query('UPDATE products SET ? WHERE ?', [
-                                    {
-                                        stock_quantity : answer.stock_quantity - newQuantity
-                                    },
-                                    {
-                                        product_name : answer.item_choice
-                                    }
-                                ])
 
-                                console.log(
-                                    `new quantity: ${stock_quantity}`
-                                )
-                            })
-                    })
+        inquirer
+            .prompt({
+                type: 'list',
+                name: 'department_choice',
+                message: 'Choose your department',
+                choices: () => {
+                    var departmentArray = [];
+                    for (var i = 0; i < res.length; i++) {
+                        departmentArray.push(res[i].department_name);
+                    }
+                    return departmentArray;
+                }
             })
-        });
-    });
+            .then(answer => {
+                departmentChoice = answer.department_choice;
+                fetchProducts();
+            });
+    })
 }
 
+const fetchProducts = () => {
+    connection.query('SELECT * FROM products WHERE ?', { department_name: departmentChoice }, function (err, res) {
+        if (err) throw err;
+        inquirer
+            .prompt({
+                type: 'list',
+                name: 'item_choice',
+                message: 'Which item would you like to purchase?',
+                choices: () => {
+                    let itemArray = [];
+                    for (var i = 0; i < res.length; i++) {
+                        itemArray.push(res[i].product_name);
+                    }
+                    return itemArray;
+                }
+            }).then(answer => {
+                itemChoice = answer.item_choice;
+                buyProducts();
+            })
+    })
+};
 
-const purchasePrompt = () => {
+const buyProducts = () => {
+    connection.query('SELECT * FROM products WHERE ?', { product_name: itemChoice }, function (err, res) {
+        if (err) throw err;
+        inquirer
+            .prompt({
+                type: 'input',
+                name: 'quantity_choice',
+                message: 'How many of this item would you like to buy?',
+            }).then(answer => {
+                quantityChoice = parseInt(answer.quantity_choice);
+                currentStock = res[0].stock_quantity;
+                newStock = currentStock -= quantityChoice;
+
+                // ENOUGH STOCK?
+                if (newStock <= 0) {
+                    console.log(`Sorry there is not enough of ${itemChoice} in stock!`);
+                    continueShopping();
+
+                } else {
+                    // PLURAL OR SINGULAR
+                    if (quantityChoice <= 1) {
+                        console.log(`Success! You purchased ${quantityChoice} ${itemChoice}`);
+                    } else {
+                        console.log(`Success! You purchased ${quantityChoice} ${itemChoice}s`);
+                    }
+
+                    cart.push(itemChoice + ' ' + quantityChoice + ' ');
+                    total += (res[0].price * quantityChoice);
+                    console.log(`
+                        Your cart: ${cart}
+                        Your total: $${total}`);
+
+                    connection.query('UPDATE products SET ? WHERE ?', [
+                        {
+                            stock_quantity: newStock
+                        },
+                        {
+                            product_name: itemChoice
+                        }
+                    ])
+                    
+                    continueShopping();
+                }
+            })
+    })
+};
+
+const continueShopping = () => {
     inquirer
         .prompt({
-            name: 'id',
-            type: 'input',
-            message: 'What is the item ID of the product you would like to purcahse?'
-        },
-        {
-            name: 'quantity',
-            type: 'input',
-            message: 'How many would you like to purcahse?'
-        }
-    
-        ).then({
+            type: 'confirm',
+            name: 'continue_shopping',
+            message: 'Would you like to continue shopping?',
+            default: false
+        }).then(answer => {
+            if (answer.continue_shopping === true) {
+                fetchDepartment();
+            }
 
-        })
+            else if (answer.continue_shopping === false) {
+                console.log(`
+                \n Thank You For Shopping At Bamazon! \n
+                Your total: $${total}`);
+                connection.end();
+            };
+        });
+};
 
-
-}
-
-// 5. Then create a Node application called `bamazonCustomer.js`. Running this application will first display all of the items available for sale. Include the ids, names, and prices of products for sale.
-
-// 6. The app should then prompt users with two messages.
-
-//    * The first should ask them the ID of the product they would like to buy.
-//    * The second message should ask how many units of the product they would like to buy.
-
-// 7. Once the customer has placed the order, your application should check if your store has enough of the product to meet the customer's request.
-
-//    * If not, the app should log a phrase like `Insufficient quantity!`, and then prevent the order from going through.
-
-// 8. However, if your store _does_ have enough of the product, you should fulfill the customer's order.
-//    * This means updating the SQL database to reflect the remaining quantity.
-//    * Once the update goes through, show the customer the total cost of their purchase.
+runBamazon();
