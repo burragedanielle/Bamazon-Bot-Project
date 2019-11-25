@@ -1,6 +1,7 @@
 const mysql = require('mysql');
 const fs = require('fs');
 const inquirer = require('inquirer');
+const chalk = require('chalk');
 
 // CONNECTING NODE TO SQL 
 
@@ -29,7 +30,7 @@ let total = 0;
 // FUNCTIONS
 
 const runBamazon = () => {
-    console.log(` Welcome to Bamazon! Let's Get Shopping! \n`);
+    console.log(chalk.cyan(`\n Welcome to Bamazon! Let's start shopping! \n`));
     fetchDepartment();
 }
 
@@ -60,6 +61,7 @@ const fetchDepartment = () => {
 const fetchProducts = () => {
     connection.query('SELECT * FROM products WHERE ?', { department_name: departmentChoice }, function (err, res) {
         if (err) throw err;
+
         inquirer
             .prompt({
                 type: 'list',
@@ -82,6 +84,8 @@ const fetchProducts = () => {
 const buyProducts = () => {
     connection.query('SELECT * FROM products WHERE ?', { product_name: itemChoice }, function (err, res) {
         if (err) throw err;
+
+        console.log(chalk `\n This item costs: {green $${res[0].price}} per unit \n`);
         inquirer
             .prompt({
                 type: 'input',
@@ -105,11 +109,11 @@ const buyProducts = () => {
                         console.log(`Success! You purchased ${quantityChoice} ${itemChoice}s`);
                     }
 
-                    cart.push(itemChoice + ' ' + quantityChoice + ' ');
+                    cart.push(itemChoice + '  ' + quantityChoice + ' ');
                     total += (res[0].price * quantityChoice);
-                    console.log(`
-                        Your cart: ${cart}
-                        Your total: $${total}`);
+                    console.log(chalk `
+                    {cyan Your cart: ${cart}}, 
+                    {green Your total: $${total}}`);
 
                     connection.query('UPDATE products SET ? WHERE ?', [
                         {
