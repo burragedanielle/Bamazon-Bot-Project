@@ -1,6 +1,6 @@
 # Bamazon-Bot-Project
 
-## KU Bootcamp Node.js Homework Assignment 
+## KU Bootcamp MySQL & Node.js Homework Assignment 
 
 ## About Bamazon 
 
